@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS events (
 
 def _path():
     return os.path.join(os.environ.get('BLADEBOOK_DATA_DIR', os.path.join(os.getcwd(), 'data')),
-                        'crk.db')
+                        'bladebook.db')
 
 
 def connect():
