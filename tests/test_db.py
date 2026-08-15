@@ -18,7 +18,7 @@ def env(tmp_path, monkeypatch):
 
 def _seed_one(db, con, tag='K01', **over):
     mid = db.upsert_model(con, 'Sebenza', 'Sebenza', '31', 'Large', 'Drop Point')
-    fields = dict(model_id=mid, steel='MagnaCut', born_on='2025-09-29')
+    fields = dict(model_id=mid, steel='MagnaCut', born_on='2025-03-03')
     fields.update(over)
     return db.upsert_knife(con, tag, **fields)
 

@@ -9,7 +9,7 @@ Photos-first knife-collection tracking, built around the birth card. Two photos 
 </tr>
 </table>
 
-*(Example knives from the seed data — see Quickstart below.)*
+*(Real knives shot the way bladebook expects: ① box end-label, ② spread with the maker's record card.)*
 
 ## Philosophy
 
@@ -41,6 +41,7 @@ The intake pipeline is an AI assistant reading your photos. Grab [Claude](https:
 ## Quickstart
 
 ```bash
+export BLADEBOOK_ADMIN_TOKEN=change-me
 pip install -r requirements.txt
 python3 scripts/seed_example.py
 python3 scripts/publish.py

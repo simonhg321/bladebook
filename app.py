@@ -8,6 +8,9 @@ from bladebook.routes import bp
 
 HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'html')
 app = Flask(__name__)
+# routes.py enforces a 30MB-per-file cap; this bounds the whole request so an
+# oversized/multi-file upload can't be buffered into memory before that check runs.
+app.config['MAX_CONTENT_LENGTH'] = 31 * 1024 * 1024
 app.register_blueprint(bp)
 
 

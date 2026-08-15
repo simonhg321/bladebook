@@ -16,7 +16,7 @@ def env(tmp_path, monkeypatch):
     mid = db.upsert_model(con, 'Sebenza', 'Sebenza', '21', 'Large', 'Drop Point')
     db.upsert_knife(con, 'K01', model_id=mid, steel='S35VN',
                     born_on='2013-07-02', inlay_material='koa',
-                    price_paid=450.0, acquired_from='Plaza Cutlery',
+                    price_paid=450.0, acquired_from='Example Cutlery',
                     location='safe', notes_private='secret',
                     condition_note='reconcile me',
                     sale_status='keeping', asking_price=999.0,

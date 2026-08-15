@@ -81,8 +81,18 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
+_MODEL_COLS = {
+    'family', 'model', 'generation', 'size', 'blade_shape', 'knife_type',
+    'production_start', 'production_end', 'blade_length_mm',
+    'blade_thickness_mm', 'weight_g', 'notes',
+}
+
+
 def upsert_model(con, family, model=None, generation=None, size=None,
                  blade_shape=None, knife_type='folder', **extra):
+    bad = set(extra) - _MODEL_COLS
+    if bad:
+        raise ValueError(f'unknown model fields: {sorted(bad)}')
     row = con.execute(
         'SELECT id FROM models WHERE family IS ? AND model IS ? AND '
         'generation IS ? AND size IS ? AND blade_shape IS ?',
