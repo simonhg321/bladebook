@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 data/
-public/
+/public/
 .pytest_cache/

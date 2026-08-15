@@ -1,1 +1,197 @@
-<!-- placeholder — replaced by the views task -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Bladebook — Uploader</title>
+<style>
+  :root {
+    --cream: #faf6ee; --ink: #1a1a1a; --accent: #b8452c;
+    --ok: #2c7a3f; --soft: #e8e0d0;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--cream); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    max-width: 520px; margin: 0 auto; padding: 16px 16px 48px;
+  }
+  h1 { font-size: 1.15rem; letter-spacing: .12em; text-transform: uppercase; margin: 4px 0 14px; }
+  h1 span { color: var(--accent); }
+
+  .tagbar { display: flex; align-items: stretch; gap: 10px; margin-bottom: 6px; }
+  .tagbar button {
+    flex: 0 0 72px; font-size: 2rem; border: 2px solid var(--ink);
+    background: #fff; border-radius: 12px; cursor: pointer; touch-action: manipulation;
+  }
+  .tagbar input {
+    flex: 1; text-align: center; font-size: 2.6rem; font-weight: 800;
+    border: 2px solid var(--ink); border-radius: 12px; background: #fff;
+    min-width: 0; padding: 8px 0; letter-spacing: .04em;
+  }
+  #count { text-align: center; font-size: .95rem; margin-bottom: 14px; color: #555; min-height: 1.2em; }
+  #count b { color: var(--ok); }
+
+  .shots { background: var(--soft); border-radius: 12px; padding: 10px 14px; font-size: .85rem; line-height: 1.55; margin-bottom: 14px; }
+  .shots b { letter-spacing: .06em; }
+
+  #pick {
+    display: block; width: 100%; padding: 22px 0; font-size: 1.35rem; font-weight: 800;
+    letter-spacing: .06em; background: var(--accent); color: #fff; border: none;
+    border-radius: 14px; cursor: pointer; touch-action: manipulation;
+  }
+  #pick:disabled { opacity: .5; }
+  #status { text-align: center; margin: 12px 0; font-size: .95rem; min-height: 1.3em; }
+  #status.err { color: var(--accent); font-weight: 700; }
+  #thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .cell { position: relative; }
+  .cell img, .cell div.ph {
+    width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;
+    background: var(--soft); border: 1px solid #d8cfba; display: block;
+  }
+  .cell div.ph { display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #777; }
+  .cell button.x {
+    position: absolute; top: -6px; right: -6px; width: 26px; height: 26px;
+    border-radius: 50%; border: 2px solid #fff; background: var(--accent);
+    color: #fff; font-size: .8rem; line-height: 1; cursor: pointer; padding: 0;
+  }
+  #keywrap { margin-top: 26px; }
+  #keywrap input { width: 100%; padding: 10px; font-size: 1rem; border: 2px solid var(--ink); border-radius: 10px; }
+  .hint { font-size: .78rem; color: #777; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <h1>Bladebook <span>Inventory</span> — photo intake</h1>
+
+  <div class="tagbar">
+    <button id="prev" aria-label="previous knife">−</button>
+    <input id="tag" value="K01" inputmode="text" autocapitalize="characters">
+    <button id="next" aria-label="next knife">+</button>
+  </div>
+  <div id="count"></div>
+
+  <div class="shots">
+    <b>SHOT ORDER</b> — ① box, UPC/SKU label legible
+    ② spread: knife + card (flat, facing up, date legible!) + cloth + tools<br>
+    <b>OPTIONAL</b> — glamour shots, show/clip sides, anything extra
+  </div>
+
+  <button id="pick">📷 &nbsp;ADD PHOTOS TO <span id="picktag">K01</span></button>
+  <input id="file" type="file" accept="image/*" multiple hidden>
+  <div id="status"></div>
+  <div id="thumbs"></div>
+
+  <div id="keywrap" hidden>
+    <input id="key" placeholder="access key" autocomplete="off">
+    <div class="hint">Paste the key once — it's remembered on this phone.</div>
+  </div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'bladebook_key', TAG = 'bladebook_tag';
+
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('key')) {
+    localStorage.setItem(KEY, qs.get('key'));
+    history.replaceState(null, '', location.pathname);
+  }
+  function key() { return localStorage.getItem(KEY) || ''; }
+  if (!key()) $('keywrap').hidden = false;
+  $('key').addEventListener('change', function () {
+    localStorage.setItem(KEY, this.value.trim());
+    $('keywrap').hidden = true; refresh();
+  });
+
+  function norm(raw) {
+    var m = /^K?(\d{1,3})$/i.exec((raw || '').trim());
+    if (!m) return null;
+    return 'K' + String(+m[1]).padStart(2, '0');
+  }
+  function tag() { return norm($('tag').value) || 'K01'; }
+  function setTag(t) {
+    $('tag').value = t; $('picktag').textContent = t;
+    localStorage.setItem(TAG, t); refresh();
+  }
+  function step(d) {
+    var n = Math.max(1, Math.min(999, parseInt(tag().slice(1), 10) + d));
+    setTag('K' + String(n).padStart(2, '0'));
+  }
+  $('prev').addEventListener('click', function () { step(-1); });
+  $('next').addEventListener('click', function () { step(1); });
+  $('tag').addEventListener('change', function () {
+    var t = norm(this.value);
+    if (t) setTag(t); else { this.value = tag(); }
+  });
+
+  function refresh() {
+    if (!key()) return;
+    var t = tag();
+    fetch('/api/bladebook/photos/' + t, { headers: { 'X-Bladebook-Token': key() } })
+      .then(function (r) {
+        if (r.status === 401) { localStorage.removeItem(KEY); $('keywrap').hidden = false; throw 0; }
+        return r.json();
+      })
+      .then(function (names) {
+        var n = names.length;
+        $('count').innerHTML = n ? '<b>' + n + ' photo' + (n > 1 ? 's' : '') + '</b> saved for ' + t
+                                 : 'no photos yet for ' + t;
+        var th = $('thumbs'); th.innerHTML = '';
+        names.forEach(function (name) {
+          var cell = document.createElement('div');
+          cell.className = 'cell';
+          var img = new Image();
+          img.src = '/api/bladebook/thumb/' + t + '/' + name.replace(/\.[a-z0-9]+$/, '.jpg')
+                    + '?key=' + encodeURIComponent(key()) + '&v=' + Date.now();
+          img.onerror = function () {
+            var d = document.createElement('div');
+            d.className = 'ph'; d.textContent = 'saved ✓';
+            this.replaceWith(d);
+          };
+          var x = document.createElement('button');
+          x.className = 'x'; x.textContent = '✕';
+          x.addEventListener('click', function () {
+            if (!confirm('Delete ' + name + ' from ' + t + '?')) return;
+            fetch('/api/bladebook/photo/' + t + '/' + name,
+                  { method: 'DELETE', headers: { 'X-Bladebook-Token': key() } })
+              .then(function (r) { return r.json(); })
+              .then(function () { refresh(); });
+          });
+          cell.appendChild(img); cell.appendChild(x);
+          th.appendChild(cell);
+        });
+      }).catch(function () {});
+  }
+
+  $('pick').addEventListener('click', function () {
+    if (!key()) { $('keywrap').hidden = false; $('key').focus(); return; }
+    $('file').click();
+  });
+
+  $('file').addEventListener('change', function () {
+    var files = this.files;
+    if (!files.length) return;
+    var fd = new FormData();
+    fd.append('tag', tag());
+    for (var i = 0; i < files.length; i++) fd.append('photos', files[i]);
+    $('pick').disabled = true;
+    var st = $('status');
+    st.className = ''; st.textContent = 'uploading ' + files.length + '…';
+    fetch('/api/bladebook/upload', { method: 'POST', body: fd,
+                               headers: { 'X-Bladebook-Token': key() } })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.j.error || 'upload failed');
+        st.textContent = '✓ saved ' + res.j.saved.length + ' — ' + res.j.tag
+                         + ' now has ' + res.j.count;
+        refresh();
+      })
+      .catch(function (e) { st.className = 'err'; st.textContent = '✗ ' + e.message; })
+      .finally(function () { $('pick').disabled = false; $('file').value = ''; });
+  });
+
+  setTag(localStorage.getItem(TAG) || 'K01');
+})();
+</script>
+</body>
+</html>

@@ -1,1 +1,256 @@
-<!-- placeholder — replaced by the views task -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Bladebook — The Collection</title>
+<style>
+  :root { --cream:#faf6ee; --ink:#1a1a1a; --accent:#b8452c; --soft:#e8e0d0; --gold:#8a6d1d; }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--cream); color:var(--ink);
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         max-width:1100px; margin:0 auto; padding:18px 16px 60px; }
+  h1 { font-size:1.3rem; letter-spacing:.12em; text-transform:uppercase; margin-bottom:4px; }
+  h1 span { color:var(--accent); }
+  #stats { color:#666; font-size:.85rem; margin-bottom:14px; }
+
+  #controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  #controls input, #controls select {
+    padding:9px 10px; font-size:.95rem; border:2px solid var(--ink);
+    border-radius:10px; background:#fff; }
+  #q { flex:1; min-width:160px; }
+
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .card { background:#fff; border:1px solid #ddd3bd; border-radius:14px;
+          overflow:hidden; cursor:pointer; transition:transform .08s; }
+  .card:hover { transform:translateY(-2px); }
+  .card img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:var(--soft); }
+  .card .body { padding:10px 12px 12px; }
+  .card h3 { font-size:.98rem; margin-bottom:2px; }
+  .born { color:var(--accent); font-weight:700; font-size:.85rem; }
+  .chips { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .chip { font-size:.68rem; background:var(--soft); border-radius:20px; padding:2px 8px; }
+  .chip.lh { background:#2c4a7a; color:#fff; }
+  .chip.se { background:var(--gold); color:#fff; }
+  .chip.sale { background:var(--accent); color:#fff; }
+
+  dialog { border:none; border-radius:16px; max-width:820px; width:94vw;
+           padding:0; background:var(--cream); }
+  dialog::backdrop { background:rgba(20,15,5,.55); }
+  .dhead { display:flex; justify-content:space-between; align-items:baseline;
+           padding:16px 18px 6px; }
+  .dhead h2 { font-size:1.1rem; }
+  .dhead button { border:none; background:none; font-size:1.5rem; cursor:pointer; }
+  .strip { display:flex; gap:6px; overflow-x:auto; padding:8px 18px; }
+  .strip img { height:110px; border-radius:8px; cursor:pointer; }
+  .fields { padding:6px 18px 18px; display:grid;
+            grid-template-columns:max-content 1fr; gap:3px 14px; font-size:.88rem; }
+  .fields dt { color:#777; }
+  .fields dd { font-weight:600; }
+  .note { grid-column:1/-1; background:var(--soft); border-radius:10px;
+          padding:8px 10px; font-size:.85rem; margin-top:6px; }
+  #keywrap { margin-top:30px; }
+  #keywrap input { width:100%; padding:10px; font-size:1rem; border:2px solid var(--ink); border-radius:10px; }
+</style>
+</head>
+<body>
+  <h1>Bladebook <span>Inventory</span></h1>
+  <div id="stats"></div>
+
+  <div id="controls">
+    <input id="q" placeholder="search anything — model, wood, smith, date, note…">
+    <select id="family"><option value="">family</option></select>
+    <select id="steel"><option value="">steel</option></select>
+    <select id="wood"><option value="">inlay / wood</option></select>
+    <select id="year"><option value="">born year</option></select>
+    <select id="sort">
+      <option value="tag">sort: tag</option>
+      <option value="born_asc">born-on ↑ oldest first</option>
+      <option value="born_desc">born-on ↓ newest first</option>
+    </select>
+  </div>
+
+  <div id="grid"></div>
+
+  <div id="keywrap" hidden>
+    <input id="key" placeholder="access key" autocomplete="off">
+  </div>
+
+  <dialog id="dlg">
+    <div class="dhead"><h2 id="dtitle"></h2><button id="dclose">✕</button></div>
+    <div class="strip" id="dstrip"></div>
+    <dl class="fields" id="dfields"></dl>
+  </dialog>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'bladebook_key';
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('key')) { localStorage.setItem(KEY, qs.get('key')); history.replaceState(null, '', location.pathname); }
+  function key() { return localStorage.getItem(KEY) || ''; }
+  if (!key()) $('keywrap').hidden = false;
+  $('key').addEventListener('change', function () {
+    localStorage.setItem(KEY, this.value.trim()); location.reload();
+  });
+
+  var DATA = [];
+
+  function title(k) {
+    var parts = [k.size, k.family === 'Sebenza' ? 'Sebenza' : k.family, k.generation];
+    if (k.family === 'TiLock') parts = ['Ti-Lock'];
+    if (k.model && k.family === 'Fixed Blade') parts = [k.model];
+    var t = parts.filter(Boolean).join(' ');
+    var extra = k.handle_treatment === 'unique graphic' ? 'Unique Graphic'
+              : k.damascus_smith ? (k.inlay_material ? cap(k.inlay_material) + ' / ' + k.damascus_smith + ' ' + k.damascus_pattern : k.damascus_smith)
+              : k.inlay_material ? cap(k.inlay_material) : '';
+    return extra ? t + ' — ' + extra : t;
+  }
+  function cap(s) { return s ? s.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) : s; }
+  function fmtBorn(d) {
+    if (!d) return 'born-on unknown';
+    var p = d.split('-');
+    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1] - 1];
+    return 'Born ' + m + ' ' + (+p[2]) + ', ' + p[0];
+  }
+  function thumbUrl(k, name) {
+    return '/api/bladebook/thumb/' + k.tag + '/' + name.replace(/\.[a-z0-9]+$/, '.jpg')
+      + '?key=' + encodeURIComponent(key())
+      + '&v=' + encodeURIComponent(k.updated || '');
+  }
+  function heroName(k) {
+    if (k.hero_photo && k.photos.indexOf(k.hero_photo) >= 0) return k.hero_photo;
+    return k.photos[Math.min(2, k.photos.length - 1)];
+  }
+
+  function options(sel, values) {
+    values.filter(Boolean).sort().forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+  function uniq(arr) { return Array.from(new Set(arr)); }
+
+  function render() {
+    var q = $('q').value.toLowerCase();
+    var fam = $('family').value, st = $('steel').value,
+        wd = $('wood').value, yr = $('year').value, sort = $('sort').value;
+    var rows = DATA.filter(function (k) {
+      if (fam && k.family !== fam) return false;
+      if (st && k.steel !== st) return false;
+      if (wd && k.inlay_material !== wd) return false;
+      if (yr && (k.born_on || '').slice(0, 4) !== yr) return false;
+      if (q) {
+        var hay = JSON.stringify(k).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+    rows.sort(function (a, b) {
+      if (sort === 'born_asc') return (a.born_on || '9') < (b.born_on || '9') ? -1 : 1;
+      if (sort === 'born_desc') return (a.born_on || '0') > (b.born_on || '0') ? -1 : 1;
+      return a.tag < b.tag ? -1 : 1;
+    });
+    $('stats').textContent = rows.length + ' of ' + DATA.length + ' knives';
+    var g = $('grid'); g.innerHTML = '';
+    rows.forEach(function (k) {
+      var c = document.createElement('div'); c.className = 'card';
+      var img = new Image(); img.src = thumbUrl(k, heroName(k)); img.loading = 'lazy';
+      var body = document.createElement('div'); body.className = 'body';
+      var chips = [];
+      if (k.blade_shape && k.blade_shape !== 'Drop Point') chips.push([k.blade_shape.toUpperCase(), 'se']);
+      if (k.steel) chips.push([k.steel, '']);
+      if (k.damascus_smith) chips.push([k.damascus_smith + ' ' + (k.damascus_pattern || ''), '']);
+      if (k.inlay_material) chips.push([cap(k.inlay_material), '']);
+      if (k.hand === 'left') chips.push(['LEFT HAND', 'lh']);
+      if (k.special_edition) chips.push(['SPECIAL', 'se']);
+      if (k.sale_status && k.sale_status !== 'keeping') chips.push([k.sale_status.replace('_', ' ').toUpperCase(), 'sale']);
+      body.innerHTML = '<h3>' + title(k) + '</h3><div class="born">' + fmtBorn(k.born_on) +
+        '</div><div class="chips">' + chips.map(function (c2) {
+          return '<span class="chip ' + c2[1] + '">' + c2[0] + '</span>'; }).join('') + '</div>';
+      c.appendChild(img); c.appendChild(body);
+      c.addEventListener('click', function () { detail(k); });
+      g.appendChild(c);
+    });
+  }
+
+  var FIELDS = [
+    ['tag', 'Tag'], ['born_on', 'Born on'], ['sku', 'SKU'],
+    ['blade_shape', 'Blade'],
+    ['steel', 'Steel'], ['hardness_note', 'Hardness'],
+    ['damascus_smith', 'Damascus smith'], ['damascus_pattern', 'Pattern'],
+    ['handle_treatment', 'Handle'], ['graphic_name', 'Graphic'],
+    ['inlay_material', 'Inlay'], ['inlay_note', 'Inlay note'],
+    ['surface_finish', 'Finish'], ['hand', 'Hand'],
+    ['hardware_note', 'Hardware'], ['special_edition', 'Special edition'],
+    ['condition', 'Condition (1-4)'], ['condition_note', 'Condition note'],
+    ['box_type', 'Box'], ['acquired_from', 'Acquired from'],
+    ['sale_status', 'Status'], ['price_paid', 'Paid'], ['asking_price', 'Asking'],
+  ];
+
+  function detail(k) {
+    $('dtitle').textContent = k.tag + ' — ' + title(k);
+    var strip = $('dstrip'); strip.innerHTML = '';
+    k.photos.forEach(function (name) {
+      var img = new Image(); img.src = thumbUrl(k, name);
+      img.title = name;
+      img.addEventListener('click', function () {
+        window.open('/api/bladebook/original/' + k.tag + '/' + name + '?key=' + encodeURIComponent(key())
+                    + '&v=' + encodeURIComponent(k.updated || ''), '_blank');
+      });
+      strip.appendChild(img);
+    });
+    var f = $('dfields'); f.innerHTML = '';
+    FIELDS.forEach(function (pair) {
+      var v = k[pair[0]];
+      if (v === null || v === undefined || v === '') return;
+      f.insertAdjacentHTML('beforeend', '<dt>' + pair[1] + '</dt><dd>' + v + '</dd>');
+    });
+    var completeness = ['box', 'card', 'papers', 'pouch', 'lanyard', 'spare_hardware']
+      .map(function (c) { var v = k['has_' + c]; return v == null ? null : (v ? '✓ ' : '✗ ') + c.replace('_', ' '); })
+      .filter(Boolean).join(' · ');
+    if (completeness) f.insertAdjacentHTML('beforeend', '<dt>Completeness</dt><dd>' + completeness + '</dd>');
+    if (k.notes_public) f.insertAdjacentHTML('beforeend', '<div class="note">' + k.notes_public + '</div>');
+    if (k.notes_private) f.insertAdjacentHTML('beforeend', '<div class="note">🔒 ' + k.notes_private + '</div>');
+    if (k.events && k.events.length) {
+      f.insertAdjacentHTML('beforeend', '<div class="note">' + k.events.map(function (e) {
+        return e.date + ' — ' + e.type + (e.detail ? ': ' + e.detail : ''); }).join('<br>') + '</div>');
+    }
+    $('dlg').showModal();
+  }
+  $('dclose').addEventListener('click', function () { $('dlg').close(); });
+  $('dlg').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+
+  ['q', 'family', 'steel', 'wood', 'year', 'sort'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+  });
+
+  if (key()) {
+    fetch('/api/bladebook/knives', { headers: { 'X-Bladebook-Token': key() } })
+      .then(function (r) {
+        if (r.status === 401) { localStorage.removeItem(KEY); $('keywrap').hidden = false; throw 0; }
+        return r.json();
+      })
+      .then(function (data) {
+        var MFULL = ['January','February','March','April','May','June','July',
+                     'August','September','October','November','December'];
+        data.forEach(function (k) {
+          if (k.born_on) {
+            var p = k.born_on.split('-');
+            k.born_text = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1] - 1]
+              + ' ' + (+p[2]) + ', ' + p[0] + ' ' + MFULL[+p[1] - 1] + ' ' + p[0];
+          }
+        });
+        DATA = data;
+        options($('family'), uniq(data.map(function (k) { return k.family; })));
+        options($('steel'), uniq(data.map(function (k) { return k.steel; })));
+        options($('wood'), uniq(data.map(function (k) { return k.inlay_material; })));
+        options($('year'), uniq(data.map(function (k) { return (k.born_on || '').slice(0, 4); })));
+        render();
+      }).catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
