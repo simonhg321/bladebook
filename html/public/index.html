@@ -36,6 +36,11 @@
           background:var(--soft); display:block; cursor:pointer; }
   .badge { font-size:.66rem; background:var(--accent); color:#fff;
            border-radius:12px; padding:2px 7px; margin-left:6px; }
+  .linkbtn { cursor:pointer; text-decoration:none; font-size:.8rem;
+             margin-left:6px; opacity:.35; }
+  tr:hover .linkbtn { opacity:1; }
+  @keyframes flashrow { 0%,60% { background:#ffe9b0; } 100% { background:transparent; } }
+  tr.flash td { animation:flashrow 2.5s ease-out; }
   .lh { background:#2c4a7a; }
   .muted { color:#999; }
   #foot { margin-top:16px; font-size:.75rem; color:#888; }
@@ -147,7 +152,9 @@
         tdi.appendChild(im);
       }
       tr.appendChild(tdi);
-      var badges = r.hand ? ' <span class="badge lh">LH</span>' : '';
+      tr.id = r._raw.tag;
+      var badges = (r.hand ? ' <span class="badge lh">LH</span>' : '') +
+        ' <a class="linkbtn" href="k/' + r._raw.tag + '/" title="copy link to this knife">🔗</a>';
       tr.insertAdjacentHTML('beforeend',
         '<td class="knife">' + r.knife + badges + '</td>' +
         '<td class="born">' + fmtBorn(r.born_on) + '</td>' +
@@ -167,6 +174,31 @@
 
   $('q').addEventListener('input', render);
   $('dlg').addEventListener('click', function () { this.close(); });
+
+  // Deep links: #K12 scrolls to and flashes that knife's row. If a search
+  // filter hides it, the filter is cleared first so the link always lands.
+  function jumpToHash() {
+    var tag = (location.hash || '').replace('#', '');
+    if (!/^K\d+$/i.test(tag)) return;
+    var row = document.getElementById(tag.toUpperCase());
+    if (!row && $('q').value) { $('q').value = ''; render(); row = document.getElementById(tag.toUpperCase()); }
+    if (!row) return;
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    row.classList.remove('flash');
+    void row.offsetWidth;
+    row.classList.add('flash');
+  }
+  window.addEventListener('hashchange', jumpToHash);
+  // 🔗 click copies the knife's shareable permalink; right-click / long-press
+  // the icon to open or share the page directly via the real href.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('.linkbtn');
+    if (a && navigator.clipboard) {
+      e.preventDefault();
+      navigator.clipboard.writeText(location.origin + location.pathname + a.getAttribute('href'));
+      a.textContent = '✓'; setTimeout(function () { a.textContent = '🔗'; }, 1200);
+    }
+  });
 
   // Size the table frame to fill the rest of the viewport (34px breathing
   // room for the footer) so its scrollbars are always reachable.
@@ -191,6 +223,7 @@
     });
     sortKey = 'born_on'; sortDir = 1;
     render();
+    jumpToHash();
     $('foot').textContent += ' Updated ' + b.generated.slice(0, 10) + '.';
   });
 })();

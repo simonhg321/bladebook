@@ -65,3 +65,48 @@ def test_export_whitelists_and_strips(env, tmp_path):
     assert max(out.size) <= 1600
     assert 0x010F not in out.getexif()
     assert k2['img'] is None    # no photos yet → no image, no crash
+
+
+def test_export_writes_permalink_pages(env, tmp_path):
+    # a stale page from a previous publish must not survive regeneration
+    stale = tmp_path / 'public' / 'k' / 'K99'
+    stale.mkdir(parents=True)
+    (stale / 'index.html').write_text('old')
+
+    env.build_public()
+    page1 = tmp_path / 'public' / 'k' / 'K01' / 'index.html'
+    page2 = tmp_path / 'public' / 'k' / 'K02' / 'index.html'
+    assert page1.exists() and page2.exists()
+    assert not (tmp_path / 'public' / 'k' / 'K99').exists()
+
+    h1 = page1.read_text()
+    h2 = page2.read_text()
+
+    # identity, specs, and the way back to the index
+    assert 'Large Sebenza 21' in h1
+    assert 'koa' in h1
+    assert '../../#K01' in h1
+    assert 'og:title' in h1
+
+    # nothing private can ever reach a permalink page
+    for banned in ('450', 'Example Cutlery', 'safe', 'secret', 'reconcile'):
+        assert banned not in h1, banned
+
+    # asking price shows only on the actively for-sale knife
+    assert '800' in h2 and 'TRADE/SALE' in h2
+    assert '999' not in h1 and 'TRADE/SALE' not in h1
+
+    # no hero photo -> page still renders, without an <img>
+    assert '<img' not in h2
+
+
+def test_permalink_og_image_needs_base_url(env, tmp_path, monkeypatch):
+    # without a configured public base URL there is no absolute og:image
+    env.build_public()
+    h1 = (tmp_path / 'public' / 'k' / 'K01' / 'index.html').read_text()
+    assert 'og:image' not in h1
+
+    monkeypatch.setenv('BLADEBOOK_PUBLIC_BASE_URL', 'https://example.com/pub')
+    env.build_public()
+    h1 = (tmp_path / 'public' / 'k' / 'K01' / 'index.html').read_text()
+    assert '<meta property="og:image" content="https://example.com/pub/img/K01.jpg">' in h1

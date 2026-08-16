@@ -63,6 +63,11 @@ Then visit:
 | `BLADEBOOK_ADMIN_TOKEN` | — | Required for the uploader, catalog, and API — pass as `?key=` or `X-Bladebook-Token` |
 | `BLADEBOOK_HOST` | `127.0.0.1` | Host `app.py` binds to |
 | `BLADEBOOK_PORT` | `5000` | Port `app.py` binds to |
+| `BLADEBOOK_PUBLIC_BASE_URL` | — | Absolute URL your public dir is served at (e.g. `https://you.example/collection`). Optional: enables `og:image` photo previews when sharing per-knife links in chats. |
+
+Every knife also gets its own share page at `public/k/<TAG>/` (regenerated on
+each publish), and `#<TAG>` on the index deep-links to that knife's row — the
+🔗 on each row copies the share link.
 
 ## Privacy
 
