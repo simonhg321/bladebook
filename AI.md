@@ -176,6 +176,16 @@ disagree, especially for anything hardness-related: steel hardness varies
 by both alloy and heat treat era, and the card's own note (when present) is
 the one to trust over a generic assumption about that steel.
 
+**Knives with no maker's card.** The repo ships a blank owner-filled card in
+two forms: `KnifeBookCard.md` (fill in digitally) and `html/card.html` (print,
+hand-write, photograph). A filled-in KnifeBookCard — as a text file next to
+the photos or as a photo of the printed card in the tag's directory — is a
+valid intake artifact: decode it exactly like a birth card, but set
+`born_on_source='owner'` (not `'card'`) and honor the "how exact is that
+date" answer in `born_on_precision`. It is the owner's own record, not a
+maker's document — never treat it as evidence of authenticity, and when it
+disagrees with a real maker's card or box label, the maker's record wins.
+
 **Normalize vocabulary as you go.** Pick canonical spellings for recurring
 values and use them consistently across every knife you seed — inconsistent
 capitalization or spelling turns a searchable field into a source of missed

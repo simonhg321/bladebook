@@ -34,6 +34,17 @@ phone photos → AI decode → seed list → SQLite → publish → three views
 
 **Three views.** The uploader takes new photos in by tag. The private catalog is the full searchable record, yours alone. The public index is what you'd hand a fellow collector: knife, generation, steel, story — nothing else.
 
+## No birth card? Make one
+
+Plenty of knives never shipped with a record card, or the card is long gone.
+[`KnifeBookCard.md`](KnifeBookCard.md) is a blank fill-in-yourself birth card —
+type into it, or print the pen-and-paper version
+([`html/card.html`](html/card.html)), hand-write it, and photograph it with
+the knife. Either way the intake pipeline reads it like a maker's card, so
+**any** knife can be inventoried from a photo and a quick handwritten note.
+It's a collector's own record, not a certificate of authenticity — it
+documents what you know, nothing more.
+
 ## Bring your own Claude
 
 The intake pipeline is an AI assistant reading your photos. Grab [Claude](https://claude.ai) and set up Claude Code on your PC or laptop, point it at this repo, and tell it a batch of photos landed — `AI.md` teaches it the whole loop: read the box label and birth card, decode them into the seed list, seed, publish, and report back. Any capable model works; nothing here is Claude-specific.
