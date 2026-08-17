@@ -1,6 +1,6 @@
 # bladebook
 
-Photos-first knife-collection tracking, built around the birth card. Two photos per knife in — a searchable private catalog and a leak-proof shareable index out.
+Track your knife collection like you mean it — built around AI, your knife's photo, and a note. Photos in — a searchable private catalog and a leak-proof shareable index out.
 
 <table>
 <tr>
